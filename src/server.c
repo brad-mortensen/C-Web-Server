@@ -57,7 +57,7 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
   ///////////////////
   // IMPLEMENT ME! //
   ///////////////////
-  sprintf(response, "Header: %s\n"
+  sprintf(response, "%s\n"
                     "Content-Type: %s\n"
                     "Content-Length: %d\n"
                     "Connection: close\n"
@@ -192,7 +192,6 @@ int main(void)
   // Get a listening socket
   int listenfd = get_listener_socket(PORT);
 
-  resp_404(listenfd);
   if (listenfd < 0)
   {
     fprintf(stderr, "webserver: fatal error getting listening socket\n");
@@ -226,7 +225,7 @@ int main(void)
 
     // newfd is a new socket descriptor for the new connection.
     // listenfd is still listening for new connections.
-
+    resp_404(newfd);
     handle_http_request(newfd, cache);
     close(newfd);
   }
