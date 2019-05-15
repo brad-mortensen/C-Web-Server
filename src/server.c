@@ -88,10 +88,8 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
 void get_d20(int fd)
 {
     srand(time(NULL) + getpid());
-
     char response_body[8];
     sprintf(response_body, "%d\n", (rand()%20)+1);
-
     send_response(fd, "HTTP/1.1 200 OK", "text/plain", response_body, strlen(response_body));
 }
 
