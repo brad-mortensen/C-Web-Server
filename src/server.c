@@ -87,10 +87,10 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
  */
 void get_d20(int fd)
 {
-    srand(time(NULL) + getpid());
-    char response_body[8];
-    sprintf(response_body, "%d\n", (rand()%20)+1);
-    send_response(fd, "HTTP/1.1 200 OK", "text/plain", response_body, strlen(response_body));
+  srand(time(NULL) + getpid());
+  char response_body[8];
+  sprintf(response_body, "%d\n", (rand() % 20) + 1);
+  send_response(fd, "HTTP/1.1 200 OK", "text/plain", response_body, strlen(response_body));
 }
 
 /**
@@ -128,6 +128,24 @@ void get_file(int fd, struct cache *cache, char *request_path)
   ///////////////////
   // IMPLEMENT ME! //
   ///////////////////
+  char filepath[4096];
+  int status;
+
+  // Try to find the file
+  snprintf(filepath, sizeof filepath, "%s%s", SERVER_ROOT, request_path);
+  status = get_file_or_cache(fd, cache, filepath);
+
+  if (status == -1)
+  {
+    snprintf(filepath, sizeof filepath, "%s%s/index.html", SERVER_ROOT, request_path);
+    status = get_file_or_cache(fd, cache, filepath);
+
+    if (status == -1)
+    {
+      resp_404(fd);
+      return;
+    }
+  }
 }
 
 /**
