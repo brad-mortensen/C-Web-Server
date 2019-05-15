@@ -56,20 +56,24 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
   ///////////////////
   // IMPLEMENT ME! //
   ///////////////////
-  sprintf(response, "%s\n"
-                    "Content-Type: %s\n"
-                    "Content-Length: %d\n"
-                    "Connection: close\n"
-                    "\n"
-                    "%s\n",
-          header,
-          content_type,
-          content_length,
-          body);
-  int response_length = strlen(response);
-  // Send it all!
-  int rv = send(fd, response, response_length, 0);
+  time_t t1 = time(NULL);
+  struct tm *ltime = localtime(&t1);
 
+  int response_length = sprintf(response,
+                                "%s\n"
+                                "Date: %s" // asctime adds its own newline
+                                "Connection: close\n"
+                                "Content-Length: %d\n"
+                                "Content-Type: %s\n"
+                                "\n" // End of HTTP header
+                                "%s\n",
+
+                                header,
+                                asctime(ltime),
+                                content_length,
+                                content_type,
+                                body);
+  int rv = send(fd, response, response_length, 0);
   if (rv < 0)
   {
     perror("send");
@@ -83,17 +87,12 @@ int send_response(int fd, char *header, char *content_type, void *body, int cont
  */
 void get_d20(int fd)
 {
-  // Generate a random number between 1 and 20 inclusive
+    srand(time(NULL) + getpid());
 
-  ///////////////////
-  // IMPLEMENT ME! //
-  ///////////////////
+    char response_body[8];
+    sprintf(response_body, "%d\n", (rand()%20)+1);
 
-  // Use send_response() to send it back as text/plain data
-
-  ///////////////////
-  // IMPLEMENT ME! //
-  ///////////////////
+    send_response(fd, "HTTP/1.1 200 OK", "text/plain", response_body, strlen(response_body));
 }
 
 /**
@@ -153,7 +152,9 @@ void handle_http_request(int fd, struct cache *cache)
 {
   const int request_buffer_size = 65536; // 64K
   char request[request_buffer_size];
-
+  char *p;
+  char request_type[8];    // GET or POST
+  char request_path[1024]; // /info etc.
   // Read request
   int bytes_recvd = recv(fd, request, request_buffer_size - 1, 0);
 
@@ -168,15 +169,54 @@ void handle_http_request(int fd, struct cache *cache)
   ///////////////////
 
   // Read the first two components of the first line of the request
+  request[bytes_recvd] = '\0';
+  p = strstr(request, "\n\n");
 
+  if (p == NULL)
+  {
+    p = strstr(request, "\r\n\r\n");
+
+    if (p == NULL)
+    {
+      p = strstr(request, "\r\r");
+
+      if (p == NULL)
+      {
+        printf("End of header not found\n");
+        exit(1);
+      }
+    }
+  }
+  // separate request to different parts
+  sscanf(request, "%s %s", request_type, request_path);
+
+  printf("REQUEST: %s %s\n", request_type, request_path);
+
+  if (strcmp(request_type, "GET") == 0)
+  {
+    if (strcmp(request_path, "/d20") == 0)
+    {
+      // Handle any programmatic endpoints here
+      get_d20(fd);
+    }
+    else
+    {
+      // Otherwise try to get a file
+      get_file(fd, cache, request_path);
+    }
+  }
+
+  else
+  {
+    fprintf(stderr, "unknown request type \"%s\"\n", request_type);
+    return;
+  }
   // If GET, handle the get endpoints
-
   //    Check if it's /d20 and handle that special case
   //    Otherwise serve the requested file by calling get_file()
 
   // (Stretch) If POST, handle the post request
 }
-
 /**
  * Main
  */
@@ -224,7 +264,7 @@ int main(void)
 
     // newfd is a new socket descriptor for the new connection.
     // listenfd is still listening for new connections.
-    resp_404(newfd);
+    // resp_404(newfd);
     handle_http_request(newfd, cache);
     close(newfd);
   }
